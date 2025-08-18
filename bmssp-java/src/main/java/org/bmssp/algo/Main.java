@@ -13,7 +13,7 @@ public class Main {
         int seed = 0;
         int source = 0;
 
-        // Allow CLI overrides like the Python argparse
+        // Allow CLI overrides
         for (int i = 0; i < args.length - 1; i++) {
             switch (args[i]) {
                 case "-n", "--nodes" -> n = Integer.parseInt(args[++i]);
