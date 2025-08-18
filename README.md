@@ -1,6 +1,6 @@
 # BMSSP Java Implementation
 
-This project is a **Java 21 Maven implementation** of the [BMSSP (Bounded Multi-Source Shortest Path)](https://papers-pdfs.assets.alphaxiv.org/2504.17033v2.pdf) algorithm, based on the provided Python reference code.
+This project is a **Java 21 Maven implementation** of the [BMSSP (Bounded Multi-Source Shortest Path)](https://papers-pdfs.assets.alphaxiv.org/2504.17033v2.pdf) algorithm.
 
 It includes:
 - Graph generation utilities (sparse directed graphs with random edges).
