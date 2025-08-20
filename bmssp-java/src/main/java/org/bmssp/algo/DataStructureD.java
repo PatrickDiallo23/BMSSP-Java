@@ -2,66 +2,108 @@ package org.bmssp.algo;
 
 import java.util.*;
 
-/** Practical approximation of the paper's D. */
+/**
+ * Practical approximation of the paper's DataStructure D (Partial Queue)
+ * Supports insert, batch_prepend, and pull operations.
+ * This reference implementation uses a priority queue to maintain the smallest keys
+ * and a map to track the best keys for each node.
+ */
 public class DataStructureD {
-    private static class KeyNode implements Comparable<KeyNode> {
-        final int v; final double key;
-        KeyNode(int v, double key) { this.v = v; this.key = key; }
-        public int compareTo(KeyNode o) { return Double.compare(this.key, o.key); }
+
+    public record NodeKey(int node, double key) implements Comparable<NodeKey> {
+        @Override
+        public int compareTo(NodeKey other) {
+            int cmp = Double.compare(this.key, other.key);
+            return cmp != 0 ? cmp : Integer.compare(this.node, other.node);
+        }
     }
 
     public record PullResult(double Bi, Set<Integer> Si) {}
 
-    private final PriorityQueue<KeyNode> heap = new PriorityQueue<>();
-    private final Map<Integer, Double> best = new HashMap<>();
+    private final PriorityQueue<NodeKey> heap;
+    private final Map<Integer, Double> best;
     private final int M;
-    private final double Bupper;
+    private final double BUpper;
     private final int blockSize;
 
-    public DataStructureD(int M, double Bupper, Integer blockSize) {
+    public DataStructureD(int M, double BUpper, Integer blockSize) {
+        this.heap = new PriorityQueue<>();
+        this.best = new HashMap<>();
         this.M = Math.max(1, M);
-        this.Bupper = Bupper;
-        this.blockSize = (blockSize != null) ? Math.max(1, blockSize) : Math.max(1, this.M / 8);
+        this.BUpper = BUpper;
+        this.blockSize = blockSize != null ? blockSize : Math.max(1, this.M / 8);
     }
 
-    public void insert(int v, double key) {
-        Double prev = best.get(v);
+    /**
+     * Insert a node with given key
+     */
+    public void insert(int node, double key) {
+        Double prev = best.get(node);
         if (prev == null || key < prev) {
-            best.put(v, key);
-            heap.add(new KeyNode(v, key));
+            best.put(node, key);
+            heap.offer(new NodeKey(node, key));
         }
     }
 
-    public void batchPrepend(Collection<Map.Entry<Integer, Double>> pairs) {
-        for (Map.Entry<Integer, Double> e : pairs) insert(e.getKey(), e.getValue());
+    /**
+     * Batch insert nodes with small keys
+     */
+    public void batchPrepend(Collection<NodeKey> pairs) {
+        for (var pair : pairs) {
+            insert(pair.node(), pair.key());
+        }
     }
 
+    /**
+     * Remove stale heap entries
+     */
     private void cleanup() {
         while (!heap.isEmpty()) {
-            KeyNode top = heap.peek();
-            Double b = best.get(top.v);
-            if (b == null || b != top.key) heap.poll(); else break;
+            var top = heap.peek();
+            Double currentBest = best.get(top.node());
+            if (currentBest == null || !currentBest.equals(top.key())) {
+                heap.poll();
+            } else {
+                break;
+            }
         }
     }
 
+    /**
+     * Check if the data structure is empty
+     */
     public boolean isEmpty() {
         cleanup();
         return heap.isEmpty();
     }
 
+    /**
+     * Pull the smallest key (Bi) and a set of nodes with smallest keys (Si)
+     */
     public PullResult pull() {
         cleanup();
-        if (heap.isEmpty()) throw new NoSuchElementException("pull from empty D");
-        double Bi = heap.peek().key;
-        Set<Integer> Si = new HashSet<>();
+        if (heap.isEmpty()) {
+            throw new IllegalStateException("Cannot pull from empty DataStructureD");
+        }
+
+        // Get the smallest key
+        double Bi = heap.peek().key();
+        var Si = new HashSet<Integer>();
+
+        // Pop up to blockSize best current entries
         while (!heap.isEmpty() && Si.size() < blockSize) {
-            KeyNode kn = heap.poll();
-            Double b = best.get(kn.v);
-            if (b != null && b == kn.key) {
-                Si.add(kn.v);
-                best.remove(kn.v);
+            var current = heap.poll();
+            int node = current.node();
+            double key = current.key();
+
+            Double currentBest = best.get(node);
+            if (currentBest != null && currentBest.equals(key)) {
+                Si.add(node);
+                // Remove from best to mark as "pulled"
+                best.remove(node);
             }
         }
+
         return new PullResult(Bi, Si);
     }
 }

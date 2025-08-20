@@ -2,26 +2,79 @@ package org.bmssp.algo.graph;
 
 import java.util.*;
 
+/**
+ * Core graph data structures and utilities
+ */
 public class Graph {
-    public record Neighbor(int v, double w) {}
 
-    private final int n;
-    private final Map<Integer, List<Neighbor>> adj;
-    private final List<Edge> edges;
+    public record Edge(int from, int to, double weight) {}
 
-    public Graph(int n) {
-        this.n = n;
-        this.adj = new HashMap<>();
-        this.edges = new ArrayList<>();
-        for (int i = 0; i < n; i++) adj.put(i, new ArrayList<>());
+    public record WeightedEdge(int to, double weight) {}
+
+    private final Map<Integer, List<WeightedEdge>> adjacencyList;
+    private final int nodeCount;
+
+    /**
+     * Simple adjacency-list graph for directed graphs with non-negative edge weights.
+     */
+    public Graph(int nodeCount) {
+        this.nodeCount = nodeCount;
+        this.adjacencyList = new HashMap<>();
+        for (int i = 0; i < nodeCount; i++) {
+            adjacencyList.put(i, new ArrayList<>());
+        }
     }
 
-    public void addEdge(int u, int v, double w) {
-        adj.get(u).add(new Neighbor(v, w));
-        edges.add(new Edge(u, v, w));
+    public void addEdge(int from, int to, double weight) {
+        adjacencyList.get(from).add(new WeightedEdge(to, weight));
     }
 
-    public int size() { return n; }
-    public Map<Integer, List<Neighbor>> getAdj() { return adj; }
-    public List<Edge> getEdges() { return edges; }
+    public List<WeightedEdge> getNeighbors(int node) {
+        return adjacencyList.getOrDefault(node, List.of());
+    }
+
+    public Set<Integer> getNodes() {
+        return adjacencyList.keySet();
+    }
+
+    public int getNodeCount() {
+        return nodeCount;
+    }
+
+    public double getAverageOutDegree() {
+        return adjacencyList.values().stream()
+                .mapToInt(List::size)
+                .average()
+                .orElse(0.0);
+    }
+
+    /**
+     * Generate a sparse directed graph with weak connectivity backbone
+     */
+    public static GeneratedGraph generate(int n, int m, double maxWeight, Random random) {
+        var graph = new Graph(n);
+        var edges = new ArrayList<Edge>();
+
+        // Create weak backbone to avoid isolated nodes
+        for (int i = 1; i < n; i++) {
+            int u = random.nextInt(i);
+            double w = random.nextDouble() * (maxWeight - 1.0) + 1.0;
+            graph.addEdge(u, i, w);
+            edges.add(new Edge(u, i, w));
+        }
+
+        // Add remaining edges
+        int remaining = Math.max(0, m - (n - 1));
+        for (int i = 0; i < remaining; i++) {
+            int u = random.nextInt(n);
+            int v = random.nextInt(n);
+            double w = random.nextDouble() * (maxWeight - 1.0) + 1.0;
+            graph.addEdge(u, v, w);
+            edges.add(new Edge(u, v, w));
+        }
+
+        return new GeneratedGraph(graph, edges);
+    }
+
+    public record GeneratedGraph(Graph graph, List<Edge> edges) {}
 }
